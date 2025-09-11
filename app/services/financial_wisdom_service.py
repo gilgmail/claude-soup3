@@ -12,7 +12,6 @@ import structlog
 from anthropic import AsyncAnthropic
 
 from app.core.config import get_settings
-from app.services.ai_content_generation import AIContentGenerator
 
 logger = structlog.get_logger()
 
@@ -28,8 +27,6 @@ class AIContentGenerationService:
             # 使用舊的配置結構
             self.anthropic_client = AsyncAnthropic(api_key=self.config.ai_anthropic_api_key)
         
-        # 基礎 AI 服務
-        self.base_generator = AIContentGenerator()
     
     async def generate_financial_article(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """生成財商成長思維文章"""
