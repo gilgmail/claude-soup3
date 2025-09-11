@@ -10,6 +10,179 @@ let categories = [];
 // API 基礎路徑
 const API_BASE = '/api/v1/financial-wisdom';
 
+// 通知系統
+class NotificationManager {
+    constructor() {
+        this.container = document.getElementById('notificationContainer');
+    }
+    
+    showLoading(message = '載入中...', showProgress = false) {
+        const loadingId = 'loading-' + Date.now();
+        const loadingHTML = `
+            <div id="${loadingId}" class="enhanced-loading show">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">${message}</div>
+                ${showProgress ? '<div class="progress-bar"><div class="progress-fill"></div></div>' : ''}
+            </div>
+        `;
+        
+        this.container.innerHTML = loadingHTML;
+        return loadingId;
+    }
+    
+    hideLoading(loadingId) {
+        const element = document.getElementById(loadingId);
+        if (element) {
+            element.remove();
+        }
+    }
+    
+    showError(title, message, actions = null, autoHide = true) {
+        const errorId = 'error-' + Date.now();
+        const actionsHTML = actions ? `
+            <div class="error-actions">
+                ${actions.map(action => 
+                    `<button class="btn btn-sm btn-outline-danger me-2" onclick="${action.onClick}">${action.text}</button>`
+                ).join('')}
+            </div>
+        ` : '';
+        
+        const errorHTML = `
+            <div id="${errorId}" class="error-alert show">
+                <div class="error-title">${title}</div>
+                <div class="error-message">${message}</div>
+                ${actionsHTML}
+            </div>
+        `;
+        
+        this.container.innerHTML = errorHTML;
+        
+        if (autoHide) {
+            setTimeout(() => this.hideError(errorId), 5000);
+        }
+        
+        return errorId;
+    }
+    
+    hideError(errorId) {
+        const element = document.getElementById(errorId);
+        if (element) {
+            element.classList.remove('show');
+            setTimeout(() => element.remove(), 300);
+        }
+    }
+    
+    showSuccess(title, message, autoHide = true) {
+        const successId = 'success-' + Date.now();
+        const successHTML = `
+            <div id="${successId}" class="success-alert show">
+                <div class="success-title">${title}</div>
+                <div class="success-message">${message}</div>
+            </div>
+        `;
+        
+        this.container.innerHTML = successHTML;
+        
+        if (autoHide) {
+            setTimeout(() => this.hideSuccess(successId), 3000);
+        }
+        
+        return successId;
+    }
+    
+    hideSuccess(successId) {
+        const element = document.getElementById(successId);
+        if (element) {
+            element.classList.remove('show');
+            setTimeout(() => element.remove(), 300);
+        }
+    }
+    
+    clear() {
+        this.container.innerHTML = '';
+    }
+}
+
+// 創建全局通知管理器
+const notifications = new NotificationManager();
+
+// 文章內容緩存系統
+class ArticleCache {
+    constructor(maxSize = 50) {
+        this.cache = new Map();
+        this.maxSize = maxSize;
+        this.loadingStates = new Set(); // 追蹤正在載入的文章
+    }
+    
+    get(articleId) {
+        return this.cache.get(articleId);
+    }
+    
+    set(articleId, article) {
+        if (this.cache.size >= this.maxSize) {
+            const firstKey = this.cache.keys().next().value;
+            this.cache.delete(firstKey);
+        }
+        this.cache.set(articleId, article);
+    }
+    
+    has(articleId) {
+        return this.cache.has(articleId);
+    }
+    
+    isLoading(articleId) {
+        return this.loadingStates.has(articleId);
+    }
+    
+    setLoading(articleId) {
+        this.loadingStates.add(articleId);
+    }
+    
+    clearLoading(articleId) {
+        this.loadingStates.delete(articleId);
+    }
+}
+
+// 創建全局文章緩存
+const articleCache = new ArticleCache();
+
+// API 請求包裝器，帶有自動錯誤處理
+async function apiRequest(url, options = {}) {
+    try {
+        const response = await fetch(url, {
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            },
+            ...options
+        });
+        
+        if (!response.ok) {
+            throw new Error(`API請求失敗: ${response.status} ${response.statusText}`);
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error('API請求錯誤:', error);
+        throw error;
+    }
+}
+
+// 骨架屏載入效果
+function showSkeletonCards(containerId, count = 3) {
+    const container = document.getElementById(containerId);
+    const skeletonHTML = Array(count).fill().map(() => `
+        <div class="skeleton-card">
+            <div class="skeleton skeleton-title"></div>
+            <div class="skeleton skeleton-text"></div>
+            <div class="skeleton skeleton-text medium"></div>
+            <div class="skeleton skeleton-text short"></div>
+        </div>
+    `).join('');
+    
+    container.innerHTML = skeletonHTML;
+}
+
 // 應用初始化
 document.addEventListener('DOMContentLoaded', function() {
     loadDashboard();
@@ -45,17 +218,17 @@ function debounce(func, wait) {
 // 載入儀表板統計資料
 async function loadDashboard() {
     try {
-        showLoading('statsCards');
+        showSkeletonCards('statsCards', 4);
         
-        const response = await fetch(`${API_BASE}/stats`);
-        if (!response.ok) throw new Error('載入統計資料失敗');
-        
-        const stats = await response.json();
+        const stats = await apiRequest(`${API_BASE}/stats`);
         renderStatsCards(stats);
         
     } catch (error) {
         console.error('載入統計資料錯誤:', error);
-        showError('statsCards', '無法載入統計資料');
+        notifications.showError('載入失敗', '無法載入統計資料，請檢查網路連接或稍後重試', [
+            { text: '重試', onClick: 'loadDashboard()' }
+        ]);
+        document.getElementById('statsCards').innerHTML = '<div class="col-12"><div class="alert alert-warning text-center">統計資料載入失敗</div></div>';
     }
 }
 
@@ -211,7 +384,7 @@ function renderArticlesList(articles) {
     }
     
     const articlesHTML = articles.map((article, index) => `
-        <div class="card card-hover article-card mb-3" onclick="showArticleDetail('${article.id}')" style="cursor: pointer;">
+        <div class="card card-hover article-card mb-3" onclick="handleArticleClick('${article.id}', this)" style="cursor: pointer;" data-article-id="${article.id}">
             <div class="card-body">
                 <div class="row align-items-center">
                     <div class="col-md-1 text-center">
@@ -240,6 +413,7 @@ function renderArticlesList(articles) {
                     <div class="col-12">
                         <small class="text-muted">
                             <i class="fas fa-mouse-pointer me-1"></i>點擊查看完整文章內容
+                            ${articleCache.has(article.id) ? '<span class="badge bg-info ms-2"><i class="fas fa-download me-1"></i>已緩存</span>' : ''}
                         </small>
                     </div>
                 </div>
@@ -251,23 +425,103 @@ function renderArticlesList(articles) {
     console.log('✅ 文章列表渲染完成，HTML長度:', articlesHTML.length);
 }
 
+// 處理文章卡片點擊事件
+async function handleArticleClick(articleId, cardElement) {
+    // 防止重複點擊
+    if (cardElement.classList.contains('loading')) {
+        return;
+    }
+    
+    // 添加載入狀態到卡片
+    cardElement.classList.add('loading');
+    cardElement.style.transform = 'scale(0.98)';
+    cardElement.style.transition = 'all 0.2s ease';
+    
+    // 添加載入指示器
+    const originalContent = cardElement.querySelector('.col-md-7 h5').innerHTML;
+    cardElement.querySelector('.col-md-7 h5').innerHTML = '<i class="fas fa-spinner fa-spin me-2 text-primary"></i>' + originalContent;
+    
+    try {
+        await showArticleDetail(articleId);
+    } finally {
+        // 移除載入狀態
+        cardElement.classList.remove('loading');
+        cardElement.style.transform = '';
+        cardElement.style.transition = '';
+        cardElement.querySelector('.col-md-7 h5').innerHTML = originalContent;
+    }
+}
+
 // 顯示文章詳情
 async function showArticleDetail(articleId) {
+    // 防止重複點擊 - 如果正在載入，直接返回
+    if (articleCache.isLoading(articleId)) {
+        console.log('文章正在載入中，請稍候...');
+        return;
+    }
+    
     try {
-        const response = await fetch(`${API_BASE}/articles/${articleId}`);
-        if (!response.ok) throw new Error('載入文章內容失敗');
+        let article;
         
-        const article = await response.json();
-        
-        // 設置模態框內容
-        const modalTitle = document.getElementById('modalTitle');
-        if (modalTitle) {
-            modalTitle.textContent = article.title;
+        // 檢查緩存
+        if (articleCache.has(articleId)) {
+            console.log('從緩存載入文章:', articleId);
+            article = articleCache.get(articleId);
+        } else {
+            // 標記為載入中
+            articleCache.setLoading(articleId);
+            
+            // 顯示載入狀態
+            const loadingId = notifications.showLoading('載入文章內容中...', false);
+            
+            try {
+                console.log('從 API 載入文章:', articleId);
+                const response = await fetch(`${API_BASE}/articles/${articleId}`);
+                if (!response.ok) throw new Error('載入文章內容失敗');
+                
+                article = await response.json();
+                
+                // 緩存文章內容
+                articleCache.set(articleId, article);
+                
+                // 隱藏載入狀態
+                notifications.hideLoading(loadingId);
+                
+            } finally {
+                // 清除載入狀態
+                articleCache.clearLoading(articleId);
+            }
         }
         
-        const modalContent = document.getElementById('modalContent');
-        if (modalContent) {
-            modalContent.innerHTML = `
+        // 渲染文章內容（從緩存或新載入）
+        renderArticleModal(article, articleId);
+        
+    } catch (error) {
+        console.error('載入文章詳情錯誤:', error);
+        articleCache.clearLoading(articleId);
+        
+        notifications.showError(
+            '載入失敗', 
+            '無法載入文章詳情，請檢查網路連接', 
+            [
+                { text: '重試', onClick: `showArticleDetail('${articleId}')` },
+                { text: '關閉', onClick: `notifications.clear()` }
+            ]
+        );
+    }
+}
+
+// 渲染文章模態框內容
+function renderArticleModal(article, articleId) {
+    // 設置模態框內容
+    const modalTitle = document.getElementById('modalTitle');
+    if (modalTitle) {
+        modalTitle.textContent = article.title;
+    }
+    
+    const modalContent = document.getElementById('modalContent');
+    if (modalContent) {
+        modalContent.innerHTML = `
             <div class="article-content">
                 <div class="mb-3">
                     <strong>分類：</strong>
@@ -283,33 +537,34 @@ async function showArticleDetail(articleId) {
                         `<span class="tag">#${escapeHtml(tag.name)}</span>`
                     ).join('')}
                 </div>
+                <div class="mb-3">
+                    <small class="text-muted">
+                        <i class="fas fa-clock me-1"></i>
+                        ${articleCache.has(articleId) ? '從緩存載入' : '新載入'}
+                    </small>
+                </div>
                 <hr>
-                <div style="white-space: pre-wrap;">${escapeHtml(article.content)}</div>
+                <div style="white-space: pre-wrap; line-height: 1.6;">${escapeHtml(article.content)}</div>
             </div>
         `;
-        } else {
-            console.error('modalContent element not found');
-            return;
-        }
-        
-        // 設置 Notion 連結
-        const notionLink = document.getElementById('notionLink');
-        if (notionLink) {
-            notionLink.href = `https://notion.so/${articleId.replace(/-/g, '')}`;
-        }
-        
-        // 顯示模態框
-        const articleModalElement = document.getElementById('articleModal');
-        if (articleModalElement) {
-            const modal = new bootstrap.Modal(articleModalElement);
-            modal.show();
-        } else {
-            console.error('articleModal element not found');
-        }
-        
-    } catch (error) {
-        console.error('載入文章詳情錯誤:', error);
-        alert('無法載入文章詳情');
+    } else {
+        console.error('modalContent element not found');
+        return;
+    }
+    
+    // 設置 Notion 連結
+    const notionLink = document.getElementById('notionLink');
+    if (notionLink) {
+        notionLink.href = `https://notion.so/${articleId.replace(/-/g, '')}`;
+    }
+    
+    // 顯示模態框
+    const articleModalElement = document.getElementById('articleModal');
+    if (articleModalElement) {
+        const modal = new bootstrap.Modal(articleModalElement);
+        modal.show();
+    } else {
+        console.error('articleModal element not found');
     }
 }
 
@@ -318,7 +573,7 @@ async function handleGenerateArticle(event) {
     event.preventDefault();
     
     const generateBtn = document.querySelector('#generateForm button[type="submit"]');
-    const loadingEl = generateBtn.querySelector('.loading');
+    const loadingId = notifications.showLoading('正在生成財商文章，請稍候...', true);
     
     try {
         console.log('🤖 開始生成文章...');
@@ -326,10 +581,6 @@ async function handleGenerateArticle(event) {
         // 顯示載入狀態
         generateBtn.disabled = true;
         generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>生成中...';
-        
-        if (loadingEl) {
-            loadingEl.style.display = 'inline-block';
-        }
         
         // 收集表單資料
         const formData = {

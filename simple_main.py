@@ -6,6 +6,8 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 # 創建基本的 FastAPI 應用
 app = FastAPI(
@@ -38,8 +40,13 @@ async def health_check():
 
 # 導入 Notion API 路由
 try:
-    from app.api.notion_web_endpoints import router as web_router
+    from app.api.notion_web_endpoints import router as web_router, limiter
     app.include_router(web_router)
+    
+    # 註冊速率限制錯誤處理器
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    
 except ImportError as e:
     print(f"無法導入 Notion 路由: {e}")
     print("將在沒有完整功能的情況下運行基本伺服器")

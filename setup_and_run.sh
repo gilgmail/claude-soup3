@@ -17,7 +17,7 @@ source venv/bin/activate
 
 # 安裝依賴
 echo "安裝依賴套件..."
-pip install fastapi uvicorn anthropic notion-client python-dotenv pydantic pydantic-settings structlog
+pip install -r requirements.txt
 
 echo "=== 啟動服務器 ==="
 echo "服務器將在 http://localhost:8000 運行"

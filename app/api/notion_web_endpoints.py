@@ -3,7 +3,7 @@
 提供 Notion 資料庫讀取和 AI 文章生成功能
 """
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import os
@@ -13,6 +13,12 @@ from datetime import datetime
 from notion_client import Client
 from app.core.config import get_settings
 from app.services.financial_wisdom_service import AIContentGenerationService
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+# 設置速率限制
+limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(prefix="/api/v1/financial-wisdom", tags=["財商成長思維"])
 
@@ -63,7 +69,9 @@ def get_ai_service():
     return AIContentGenerationService()
 
 @router.get("/articles", response_model=ArticleListResponse)
+@limiter.limit("30/minute")  # 限制每分鐘30次請求
 async def get_articles(
+    request: Request,
     limit: int = 20,
     category: Optional[str] = None,
     search: Optional[str] = None
@@ -241,7 +249,8 @@ async def get_categories():
         raise HTTPException(status_code=500, detail=f"獲取分類失敗: {str(e)}")
 
 @router.post("/generate", response_model=GeneratedArticleResponse)
-async def generate_article(request: ArticleGenerationRequest):
+@limiter.limit("3/minute")  # 限制每分鐘3次請求
+async def generate_article(request_obj: Request, request: ArticleGenerationRequest):
     """基於主題和要求生成新的財商文章"""
     try:
         ai_service = get_ai_service()
@@ -283,7 +292,8 @@ async def generate_article(request: ArticleGenerationRequest):
         raise HTTPException(status_code=500, detail=f"文章生成失敗: {str(e)}")
 
 @router.post("/save-generated")
-async def save_generated_article(article: GeneratedArticleResponse):
+@limiter.limit("5/minute")  # 限制每分鐘5次保存請求
+async def save_generated_article(request: Request, article: GeneratedArticleResponse):
     """將生成的文章保存到 Notion 資料庫"""
     try:
         client = get_notion_client()
