@@ -3,6 +3,7 @@
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from typing import List, Optional, Dict, Any
 import structlog
@@ -11,6 +12,8 @@ from app.core.config import settings
 from app.api.dependencies import (
     get_knowledge_base, get_content_workflow, get_data_collector
 )
+from app.api.simple_notion_endpoints import router as notion_router
+from app.api.notion_web_endpoints import router as web_router
 from app.models.domain import (
     GenerationRequest, ArticleSummary, TopicSummary, ContentStyle
 )
@@ -55,6 +58,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include Notion endpoints
+app.include_router(notion_router)
+app.include_router(web_router)
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Serve main HTML file at root
+from fastapi.responses import FileResponse
+import os
+
+@app.get("/")
+async def serve_index():
+    """Serve the main HTML file."""
+    return FileResponse("static/index.html")
 
 
 # Health check endpoint

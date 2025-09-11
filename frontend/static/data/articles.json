@@ -1,5 +1,59 @@
 [
   {
+    "id": "82bfb49b-a3c8-4896-8d7c-7aae0e01f5ed",
+    "title": "測試文章3",
+    "topic_category": "測試",
+    "content_style": "測試風格",
+    "quality_score": 9.0,
+    "created_at": "2025-09-08T11:12:45.409633",
+    "word_count": 4,
+    "readability_score": 8.8,
+    "engagement_score": 9.1,
+    "content_json": {
+      "content": "測試內容"
+    },
+    "topic_keywords": [
+      "投資理財",
+      "財富管理"
+    ]
+  },
+  {
+    "id": "b942b7a2-0642-4a0b-bacf-7892c84ac2a3",
+    "title": "測試文章2",
+    "topic_category": "測試",
+    "content_style": "測試風格",
+    "quality_score": 9.0,
+    "created_at": "2025-09-08T11:09:58.252328",
+    "word_count": 4,
+    "readability_score": 9.4,
+    "engagement_score": 9.5,
+    "content_json": {
+      "content": "測試內容"
+    },
+    "topic_keywords": [
+      "投資理財",
+      "財富管理"
+    ]
+  },
+  {
+    "id": "1ee163e2-ce6c-4089-937e-2ed5d7a54db7",
+    "title": "測試文章",
+    "topic_category": "測試",
+    "content_style": "測試風格",
+    "quality_score": 9.0,
+    "created_at": "2025-09-08T10:09:07.814440",
+    "word_count": 4,
+    "readability_score": 9.5,
+    "engagement_score": 9.6,
+    "content_json": {
+      "content": "測試內容"
+    },
+    "topic_keywords": [
+      "投資理財",
+      "財富管理"
+    ]
+  },
+  {
     "id": "84116fc8-dfb9-4704-b1ca-f23bfc9d094c",
     "title": "每日智慧：基金理財的深度投資分析",
     "topic_category": "基金理財",

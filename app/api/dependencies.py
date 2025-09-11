@@ -11,6 +11,7 @@ from app.services.ai_content_generation import (
 )
 from app.services.knowledge_base import KnowledgeBaseService
 from app.services.content_workflow import ContentGenerationWorkflow
+from app.services.notion_service import NotionService
 from app.core.config import settings
 
 
@@ -19,6 +20,7 @@ _knowledge_base: KnowledgeBaseService = None
 _data_collector: DataCollectionService = None
 _ai_generator: AIContentGenerator = None
 _content_workflow: ContentGenerationWorkflow = None
+_notion_service: NotionService = None
 
 
 @lru_cache()
@@ -62,6 +64,17 @@ def get_ai_generator() -> AIContentGenerator:
 
 
 @lru_cache()
+def get_notion_service() -> NotionService:
+    """Get or create Notion service instance."""
+    global _notion_service
+    
+    if _notion_service is None:
+        _notion_service = NotionService()
+    
+    return _notion_service
+
+
+@lru_cache()
 async def get_content_workflow() -> ContentGenerationWorkflow:
     """Get or create content generation workflow instance."""
     global _content_workflow
@@ -87,7 +100,7 @@ async def get_content_workflow() -> ContentGenerationWorkflow:
 # Cleanup function for graceful shutdown
 async def cleanup_services():
     """Clean up all service resources."""
-    global _knowledge_base, _data_collector, _ai_generator, _content_workflow
+    global _knowledge_base, _data_collector, _ai_generator, _content_workflow, _notion_service
     
     if _knowledge_base:
         await _knowledge_base.cleanup()
@@ -100,3 +113,4 @@ async def cleanup_services():
     _data_collector = None  
     _ai_generator = None
     _content_workflow = None
+    _notion_service = None

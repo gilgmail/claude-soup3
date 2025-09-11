@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     # AI Service
     anthropic_api_key: Optional[str] = Field(default=None)
     openai_api_key: Optional[str] = Field(default=None)
-    ai_primary_model: str = Field(default="claude-3-sonnet-20240229")
+    ai_primary_model: str = Field(default="claude-3-5-sonnet-20241022")
     ai_secondary_model: str = Field(default="gpt-3.5-turbo")
     ai_max_tokens_per_request: int = Field(default=2000)
     ai_request_timeout: int = Field(default=30)
@@ -74,6 +74,10 @@ class Settings(BaseSettings):
     elasticsearch_url: str = Field(default="http://localhost:9200")
     celery_broker_url: str = Field(default="redis://localhost:6379/1")
     celery_result_backend: str = Field(default="redis://localhost:6379/2")
+    
+    # Notion Configuration - Simplified Single Database
+    notion_token: Optional[str] = Field(default=None, alias="NOTION_TOKEN")
+    notion_database_id: Optional[str] = Field(default=None, alias="NOTION_DATABASE_ID")
     
     # Monitoring
     grafana_password: str = Field(default="admin")
@@ -172,6 +176,13 @@ class ContentConfig:
         self.trending_cache_ttl = settings_obj.content_trending_cache_ttl
 
 
+class NotionConfig:
+    """Notion database configuration wrapper - Simplified single database."""
+    def __init__(self, settings_obj):
+        self.token = settings_obj.notion_token
+        self.database_id = settings_obj.notion_database_id
+
+
 # Enhanced settings class with backward compatibility methods  
 class EnhancedSettings(Settings):
     """Enhanced Settings class with legacy compatibility."""
@@ -184,6 +195,7 @@ class EnhancedSettings(Settings):
         self._ai = AIConfig(self)
         self._scraping = ScrapingConfig(self)
         self._content = ContentConfig(self)
+        self._notion = NotionConfig(self)
     
     @property
     def database(self):
@@ -204,7 +216,15 @@ class EnhancedSettings(Settings):
     @property
     def content(self):
         return self._content
+        
+    @property
+    def notion(self):
+        return self._notion
 
 
 # Global settings instance
 settings = EnhancedSettings()
+
+def get_settings() -> EnhancedSettings:
+    """Get application settings instance."""
+    return settings
