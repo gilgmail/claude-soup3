@@ -60,8 +60,70 @@ class MemoryCache:
             'memory_usage_kb': len(str(self._cache)) / 1024
         }
 
-# 全局缓存實例
+# 全局缓存實例和使用量追蹤
 cache = MemoryCache(default_ttl=300)  # 5分鐘缓存
+
+# AI 使用量追蹤
+class AIUsageTracker:
+    def __init__(self):
+        self._usage_data = {
+            'daily_calls': 0,
+            'monthly_calls': 0,
+            'total_calls': 0,
+            'last_reset_date': datetime.now(timezone.utc).date(),
+            'response_times': [],
+            'error_count': 0,
+            'success_count': 0
+        }
+
+    def track_call(self, response_time_ms: float, success: bool = True):
+        """追蹤 AI 調用"""
+        current_date = datetime.now(timezone.utc).date()
+
+        # 如果是新的一天，重置每日計數
+        if current_date != self._usage_data['last_reset_date']:
+            self._usage_data['daily_calls'] = 0
+            self._usage_data['last_reset_date'] = current_date
+
+        # 更新計數
+        self._usage_data['daily_calls'] += 1
+        self._usage_data['monthly_calls'] += 1
+        self._usage_data['total_calls'] += 1
+
+        # 記錄響應時間
+        self._usage_data['response_times'].append(response_time_ms)
+        if len(self._usage_data['response_times']) > 100:  # 只保留最近100次記錄
+            self._usage_data['response_times'] = self._usage_data['response_times'][-100:]
+
+        # 記錄成功/失敗
+        if success:
+            self._usage_data['success_count'] += 1
+        else:
+            self._usage_data['error_count'] += 1
+
+    def get_stats(self) -> Dict[str, Any]:
+        """獲取使用統計"""
+        avg_response_time = 0
+        if self._usage_data['response_times']:
+            avg_response_time = sum(self._usage_data['response_times']) / len(self._usage_data['response_times'])
+
+        success_rate = 0
+        total_attempts = self._usage_data['success_count'] + self._usage_data['error_count']
+        if total_attempts > 0:
+            success_rate = (self._usage_data['success_count'] / total_attempts) * 100
+
+        return {
+            'daily_calls': self._usage_data['daily_calls'],
+            'monthly_calls': self._usage_data['monthly_calls'],
+            'total_calls': self._usage_data['total_calls'],
+            'avg_response_time_ms': round(avg_response_time, 2),
+            'success_rate': round(success_rate, 2),
+            'error_count': self._usage_data['error_count'],
+            'last_reset_date': self._usage_data['last_reset_date'].isoformat()
+        }
+
+# 全局 AI 使用量追蹤器
+ai_usage_tracker = AIUsageTracker()
 
 # 缓存裝飾器
 def cached(ttl: int = 300, key_prefix: str = ""):
@@ -324,9 +386,12 @@ async def get_categories():
 @limiter.limit("3/minute")  # 限制每分鐘3次請求
 async def generate_article(request: Request, article_request: ArticleGenerationRequest):
     """基於主題和要求生成新的財商文章"""
+    start_time = time.time()
+    success = False
+
     try:
         ai_service = get_ai_service()
-        
+
         # 構建生成請求
         generation_request = {
             "title": article_request.title,
@@ -338,19 +403,22 @@ async def generate_article(request: Request, article_request: ArticleGenerationR
             "focus_areas": article_request.focus_areas,
             "template": "financial_wisdom"
         }
-        
+
         # 調用 AI 生成服務
         result = await ai_service.generate_financial_article(generation_request)
-        
+
         if not result.get('success'):
+            response_time = (time.time() - start_time) * 1000
+            ai_usage_tracker.track_call(response_time, success=False)
             raise HTTPException(status_code=500, detail=result.get('error', '生成失敗'))
-        
+
         article_data = result['data']
-        
+        success = True
+
         # 計算閱讀時間
         reading_time = max(1, round(article_data['word_count'] / 250))
-        
-        return GeneratedArticleResponse(
+
+        response = GeneratedArticleResponse(
             title=article_data['title'],
             content=article_data['content'],
             category=article_data.get('category', '財富建構'),
@@ -360,8 +428,17 @@ async def generate_article(request: Request, article_request: ArticleGenerationR
             quality_score=article_data.get('quality_score', 8.0),
             prompt_used=article_data.get('prompt_used')
         )
-        
+
+        # 記錄成功的 AI 調用
+        response_time = (time.time() - start_time) * 1000
+        ai_usage_tracker.track_call(response_time, success=True)
+
+        return response
+
     except Exception as e:
+        # 記錄失敗的 AI 調用
+        response_time = (time.time() - start_time) * 1000
+        ai_usage_tracker.track_call(response_time, success=False)
         raise HTTPException(status_code=500, detail=f"文章生成失敗: {str(e)}")
 
 @router.post("/save-generated")
@@ -642,8 +719,9 @@ async def delete_cache_key(cache_key: str):
 async def get_performance_metrics():
     """獲取API性能指標"""
     cache_stats = cache.get_stats()
-    
-    # 模擬API響應時間統計 (在實際應用中，這些會從真實的監控系統獲取)
+    ai_stats = ai_usage_tracker.get_stats()
+
+    # 整合真實的AI使用統計和緩存性能
     performance_metrics = {
         "cache_performance": {
             "hit_rate_estimate": f"{min(90, cache_stats['active_keys'] * 2)}%",
@@ -651,25 +729,62 @@ async def get_performance_metrics():
             "active_cache_keys": cache_stats['active_keys'],
             "expired_keys": cache_stats['expired_keys']
         },
+        "ai_performance": {
+            "daily_calls": ai_stats['daily_calls'],
+            "monthly_calls": ai_stats['monthly_calls'],
+            "total_calls": ai_stats['total_calls'],
+            "avg_response_time_ms": ai_stats['avg_response_time_ms'],
+            "success_rate": ai_stats['success_rate'],
+            "error_count": ai_stats['error_count']
+        },
         "api_endpoints": {
             "get_articles": {"avg_response_ms": 120, "cached": True},
-            "get_article_content": {"avg_response_ms": 80, "cached": True}, 
+            "get_article_content": {"avg_response_ms": 80, "cached": True},
             "get_categories": {"avg_response_ms": 45, "cached": True},
-            "get_stats": {"avg_response_ms": 95, "cached": True}
+            "get_stats": {"avg_response_ms": 95, "cached": True},
+            "generate_article": {"avg_response_ms": ai_stats['avg_response_time_ms'], "cached": False}
         },
         "optimization_status": {
             "caching_enabled": True,
             "rate_limiting_enabled": True,
-            "query_optimization": True
+            "query_optimization": True,
+            "ai_usage_tracking": True
         },
         "recommendations": []
     }
-    
+
     # 添加優化建議
     if cache_stats['active_keys'] < 5:
         performance_metrics["recommendations"].append("缓存命中率較低，考慮調整TTL設置")
-    
+
     if cache_stats['memory_usage_kb'] > 1000:
         performance_metrics["recommendations"].append("缓存內存使用較高，考慮清理過期缓存")
-    
+
+    if ai_stats['success_rate'] < 95:
+        performance_metrics["recommendations"].append("AI服務成功率偏低，建議檢查網路連接和API狀態")
+
+    if ai_stats['avg_response_time_ms'] > 5000:
+        performance_metrics["recommendations"].append("AI響應時間較慢，考慮優化提示詞長度")
+
     return performance_metrics
+
+@router.get("/ai/usage-stats")
+async def get_ai_usage_stats():
+    """獲取詳細的AI使用量統計"""
+    return {
+        "usage_stats": ai_usage_tracker.get_stats(),
+        "status": "active",
+        "tracking_enabled": True
+    }
+
+@router.post("/ai/reset-daily-counter")
+async def reset_daily_ai_counter():
+    """重置每日AI使用計數器（管理功能）"""
+    ai_usage_tracker._usage_data['daily_calls'] = 0
+    ai_usage_tracker._usage_data['last_reset_date'] = datetime.now(timezone.utc).date()
+
+    return {
+        "message": "每日AI使用計數器已重置",
+        "status": "success",
+        "reset_date": ai_usage_tracker._usage_data['last_reset_date'].isoformat()
+    }

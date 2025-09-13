@@ -38,6 +38,11 @@ async def serve_analytics():
     """提供分析頁面"""
     return FileResponse("static/analytics.html")
 
+@app.get("/dashboard")
+async def serve_dashboard():
+    """提供資料統計儀表板"""
+    return FileResponse("static/dashboard.html")
+
 @app.get("/health")
 async def health_check():
     """健康檢查"""

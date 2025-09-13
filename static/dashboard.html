@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- SEO Meta Tags -->
+    <title>資料統計儀表板 - 財商成長思維平台</title>
+    <meta name="description" content="財商平台資料統計儀表板，監控 AI 使用量、文章生成統計、系統性能指標和用戶行為數據。">
+    <meta name="keywords" content="資料統計,AI使用量,性能監控,財商平台,數據分析">
+    <meta name="robots" content="noindex, nofollow">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .navbar {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            color: white !important;
+            font-size: 1.5rem;
+        }
+
+        .navbar-nav .nav-link {
+            color: rgba(255, 255, 255, 0.9) !important;
+            font-weight: 500;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+        }
+
+        .navbar-nav .nav-link:hover,
+        .navbar-nav .nav-link.active {
+            color: white !important;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 8px 16px !important;
+        }
+
+        .dashboard-container {
+            padding: 40px 0;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-card h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 700;
+            margin: 20px 0;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+        }
+
+        .progress {
+            height: 8px;
+            border-radius: 10px;
+            background: rgba(103, 126, 234, 0.1);
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 10px;
+        }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            position: relative;
+            height: 400px;
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .metric-row:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            color: #2c3e50;
+            font-weight: 500;
+        }
+
+        .metric-value {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-active { background-color: #27ae60; }
+        .status-warning { background-color: #f39c12; }
+        .status-error { background-color: #e74c3c; }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(103, 126, 234, 0.3);
+            border-radius: 50%;
+            border-top-color: #667eea;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .refresh-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            color: white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            transform: rotate(180deg);
+            box-shadow: 0 5px 15px rgba(103, 126, 234, 0.4);
+        }
+
+        .alert-custom {
+            background: rgba(255, 255, 255, 0.95);
+            border: none;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .usage-chart {
+            max-height: 300px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 導航欄 -->
+    <nav class="navbar navbar-expand-lg fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-chart-line me-2"></i>財商成長思維
+            </a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">智能生成</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/analytics">文章分析</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/dashboard">資料統計</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要內容 -->
+    <div class="dashboard-container">
+        <div class="container">
+            <!-- 頁面標題 -->
+            <div class="row mb-4 mt-5">
+                <div class="col-12">
+                    <div class="text-center text-white">
+                        <h1 class="display-4 fw-bold mb-3">
+                            <i class="fas fa-tachometer-alt me-3"></i>資料統計儀表板
+                        </h1>
+                        <p class="lead">監控系統性能、AI 使用量和內容生成統計</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 快速統計卡片 -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="stat-card text-center">
+                        <h3><i class="fas fa-file-alt text-primary"></i> 文章總數</h3>
+                        <div class="stat-number" id="totalArticles">--</div>
+                        <div class="stat-label">已生成文章</div>
+                        <div class="progress">
+                            <div class="progress-bar" id="articlesProgress" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card text-center">
+                        <h3><i class="fas fa-robot text-success"></i> AI 調用</h3>
+                        <div class="stat-number" id="aiCalls">--</div>
+                        <div class="stat-label">本月總調用</div>
+                        <div class="progress">
+                            <div class="progress-bar" id="aiProgress" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card text-center">
+                        <h3><i class="fas fa-clock text-warning"></i> 平均響應</h3>
+                        <div class="stat-number" id="avgResponse">--</div>
+                        <div class="stat-label">毫秒</div>
+                        <div class="progress">
+                            <div class="progress-bar" id="responseProgress" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card text-center">
+                        <h3><i class="fas fa-memory text-info"></i> 緩存命中</h3>
+                        <div class="stat-number" id="cacheHit">--</div>
+                        <div class="stat-label">命中率</div>
+                        <div class="progress">
+                            <div class="progress-bar" id="cacheProgress" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 圖表區域 -->
+            <div class="row">
+                <!-- AI 使用量圖表 -->
+                <div class="col-lg-6">
+                    <div class="chart-container">
+                        <button class="refresh-btn" onclick="refreshAIChart()">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <h3 class="mb-4"><i class="fas fa-brain me-2"></i>AI 使用量趨勢</h3>
+                        <canvas id="aiUsageChart" class="usage-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- 文章生成統計 -->
+                <div class="col-lg-6">
+                    <div class="chart-container">
+                        <button class="refresh-btn" onclick="refreshArticleChart()">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <h3 class="mb-4"><i class="fas fa-newspaper me-2"></i>文章生成統計</h3>
+                        <canvas id="articleChart" class="usage-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 系統監控 -->
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="stat-card">
+                        <h3><i class="fas fa-server me-2"></i>系統性能監控</h3>
+                        <div id="systemMetrics">
+                            <!-- 動態載入系統指標 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI 服務狀態 -->
+                <div class="col-lg-4">
+                    <div class="stat-card">
+                        <h3><i class="fas fa-cogs me-2"></i>服務狀態</h3>
+                        <div id="serviceStatus">
+                            <div class="metric-row">
+                                <span class="metric-label">
+                                    <span class="status-indicator status-active"></span>API 服務
+                                </span>
+                                <span class="metric-value">運行中</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">
+                                    <span class="status-indicator" id="aiServiceStatus"></span>AI 服務
+                                </span>
+                                <span class="metric-value" id="aiServiceText">檢查中...</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">
+                                    <span class="status-indicator" id="cacheServiceStatus"></span>緩存服務
+                                </span>
+                                <span class="metric-value" id="cacheServiceText">檢查中...</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">
+                                    <span class="status-indicator status-active"></span>資料庫
+                                </span>
+                                <span class="metric-value">正常</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 成本監控警告 -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="alert alert-custom" id="costAlert" style="display: none;">
+                        <h4 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>成本警告</h4>
+                        <p id="costAlertText">AI 使用成本接近每日限額，請注意控制使用量。</p>
+                        <hr>
+                        <div class="d-flex justify-content-between">
+                            <span>本日使用：<strong id="todayUsage">$0.00</strong></span>
+                            <span>每日限額：<strong>$50.00</strong></span>
+                        </div>
+                        <div class="progress mt-2">
+                            <div class="progress-bar bg-warning" id="costProgress" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="static/js/dashboard.js"></script>
+</body>
+</html>
