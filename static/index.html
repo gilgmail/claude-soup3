@@ -3,7 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>財商成長思維 - 智能文章管理平台</title>
+    
+    <!-- SEO Meta Tags -->
+    <title>財商成長思維 - AI智能財經文章生成與管理平台</title>
+    <meta name="description" content="專業的財商教育平台，提供AI智能生成的財經文章、投資理財知識和財富思維培養內容。幫助您建立正確的財務觀念，實現財富自由。">
+    <meta name="keywords" content="財商教育,投資理財,財富思維,個人成長,被動收入,複利效應,風險管理,AI文章生成">
+    <meta name="author" content="財商成長思維平台">
+    <meta name="robots" content="index, follow">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="http://localhost:8000/">
+    <meta property="og:title" content="財商成長思維 - AI智能財經文章生成與管理平台">
+    <meta property="og:description" content="專業的財商教育平台，提供AI智能生成的財經文章、投資理財知識和財富思維培養內容。">
+    <meta property="og:image" content="http://localhost:8000/static/images/og-image.jpg">
+    <meta property="og:site_name" content="財商成長思維">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="http://localhost:8000/">
+    <meta property="twitter:title" content="財商成長思維 - AI智能財經文章生成與管理平台">
+    <meta property="twitter:description" content="專業的財商教育平台，提供AI智能生成的財經文章、投資理財知識和財富思維培養內容。">
+    <meta property="twitter:image" content="http://localhost:8000/static/images/twitter-image.jpg">
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="http://localhost:8000/">
+    
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "財商成長思維",
+      "description": "專業的財商教育平台，提供AI智能生成的財經文章、投資理財知識和財富思維培養內容",
+      "url": "http://localhost:8000/",
+      "author": {
+        "@type": "Organization",
+        "name": "財商成長思維平台"
+      },
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "http://localhost:8000/?search={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+    
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -269,13 +317,10 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="#generate">智能生成</a>
+                        <a class="nav-link active" href="#generate">智能生成</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="#articles">文章管理</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#dashboard">資料統計</a>
                     </li>
                 </ul>
             </div>
@@ -305,9 +350,26 @@
                             </div>
                             
                             <div class="mb-3">
+                                <label for="articleTemplate" class="form-label">文章模板</label>
+                                <select class="form-select" id="articleTemplate" onchange="updateTopicPlaceholder()">
+                                    <option value="custom">自定義內容</option>
+                                    <option value="wealth_mindset">財富成長思維（深度分析）</option>
+                                    <option value="investment_guide">投資理財指南（實用教學）</option>
+                                    <option value="business_strategy">商業策略分析（案例導向）</option>
+                                    <option value="personal_finance">個人財務管理（步驟詳解）</option>
+                                    <option value="market_analysis">市場趨勢分析（專業觀點）</option>
+                                    <option value="career_development">職涯發展建議（成長導向）</option>
+                                    <option value="entrepreneurship">創業心得分享（實戰經驗）</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
                                 <label for="articleTopic" class="form-label">文章主題 *</label>
                                 <textarea class="form-control" id="articleTopic" rows="3" required 
                                          placeholder="描述你想要生成的文章主題和內容要點"></textarea>
+                                <div class="form-text" id="templateDescription">
+                                    選擇上方的文章模板來自動應用專業的寫作結構和提示語。
+                                </div>
                             </div>
                             
                             <div class="mb-3">
@@ -412,18 +474,6 @@
             </div>
         </section>
 
-        <!-- 資料統計區域 -->
-        <section id="dashboard" class="mt-5">
-            <div class="row mb-4">
-                <div class="col-12">
-                    <h2 class="mb-4"><i class="fas fa-chart-line me-2"></i>資料庫概覽</h2>
-                </div>
-            </div>
-            
-            <div class="row" id="statsCards">
-                <!-- 統計卡片將由 JavaScript 動態生成 -->
-            </div>
-        </section>
     </div>
 
     <!-- 文章詳細資訊模態框 -->

@@ -33,10 +33,26 @@ async def serve_index():
     """提供主頁面"""
     return FileResponse("static/index.html")
 
+@app.get("/analytics")
+async def serve_analytics():
+    """提供分析頁面"""
+    return FileResponse("static/analytics.html")
+
 @app.get("/health")
 async def health_check():
     """健康檢查"""
     return {"status": "healthy", "service": "financial-wisdom-platform"}
+
+@app.get("/robots.txt")
+async def robots_txt():
+    """提供 robots.txt 文件"""
+    return FileResponse("static/robots.txt", media_type="text/plain")
+
+@app.get("/sitemap.xml")
+async def sitemap_xml():
+    """重定向到動態生成的 sitemap"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/api/v1/financial-wisdom/sitemap.xml")
 
 # 導入 Notion API 路由
 try:
